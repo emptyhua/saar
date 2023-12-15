@@ -91,7 +91,7 @@ func (sr *Reader) Open(p string) (*FileReader, error) {
 		}
 	}
 	if hdr == nil {
-		return nil, fmt.Errorf("%w:%s", ErrFileNotExist, p)
+		return nil, fmt.Errorf("%w:%s", ErrNotExist, p)
 	}
 
 	if hdr.IsDir {

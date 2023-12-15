@@ -81,7 +81,7 @@ func (sw *Writer) WriteHeader(hdr Header) (rterr error) {
 
 	for _, oh := range sw.index {
 		if oh.Path == hdr.Path {
-			return fmt.Errorf("%w:%s", ErrFileExist, hdr.Path)
+			return fmt.Errorf("%w:%s", ErrExist, hdr.Path)
 		}
 	}
 
