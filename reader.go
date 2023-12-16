@@ -45,8 +45,8 @@ func (sr *Reader) initIndex() error {
 		return nil
 	}
 
-	if _, err := sr.r.Seek(0, io.SeekStart); err != nil {
-		return err
+	if _, err := sr.r.Seek(-4, io.SeekEnd); err != nil {
+		return fmt.Errorf("%w:seek to index size failed:%v", ErrMalformed, err)
 	}
 
 	tmp := make([]byte, 4)
@@ -55,20 +55,20 @@ func (sr *Reader) initIndex() error {
 		return err
 	}
 
-	off := binary.LittleEndian.Uint32(tmp)
+	size := int64(binary.LittleEndian.Uint32(tmp))
 
-	if _, err := sr.r.Seek(int64(off), io.SeekStart); err != nil {
-		return fmt.Errorf("can't seek to header index:%w", err)
+	if _, err := sr.r.Seek(-4-size, io.SeekEnd); err != nil {
+		return fmt.Errorf("%w:seek to index failed:%v", ErrMalformed, err)
 	}
 
-	bs, err := ioutil.ReadAll(sr.r)
+	bs, err := ioutil.ReadAll(io.LimitReader(sr.r, size))
 	if err != nil {
-		return err
+		return fmt.Errorf("%w:read index failed:%v", ErrMalformed, err)
 	}
 
 	index := []*Header{}
 	if err := json.Unmarshal(bs, &index); err != nil {
-		return fmt.Errorf("parse header index failed:%w", err)
+		return fmt.Errorf("%w:parse index failed:%v", ErrMalformed, err)
 	}
 	sr.index = index
 

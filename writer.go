@@ -9,7 +9,7 @@ import (
 )
 
 type Writer struct {
-	w      io.WriteSeeker
+	w      io.Writer
 	lock   sync.Mutex
 	closed bool
 	err    error
@@ -19,30 +19,10 @@ type Writer struct {
 	size   int64
 }
 
-func NewWriter(w io.WriteSeeker) *Writer {
+func NewWriter(w io.Writer) *Writer {
 	return &Writer{
 		w: w,
 	}
-}
-
-func (sw *Writer) initOffset() error {
-	if sw.offset != 0 {
-		return nil
-	}
-
-	if _, err := sw.w.Seek(0, io.SeekStart); err != nil {
-		return err
-	}
-
-	tmp := make([]byte, 4)
-	binary.LittleEndian.PutUint32(tmp, 0)
-
-	if _, err := sw.w.Write(tmp); err != nil {
-		return err
-	}
-
-	sw.offset = 4
-	return nil
 }
 
 func (sw *Writer) saveLastHeader() {
@@ -57,7 +37,7 @@ func (sw *Writer) saveLastHeader() {
 	sw.hdr = nil
 }
 
-func (sw *Writer) WriteHeader(hdr Header) (rterr error) {
+func (sw *Writer) WriteHeader(hdr Header) error {
 	sw.lock.Lock()
 	defer sw.lock.Unlock()
 
@@ -67,16 +47,6 @@ func (sw *Writer) WriteHeader(hdr Header) (rterr error) {
 
 	if sw.err != nil {
 		return sw.err
-	}
-
-	defer func() {
-		if rterr != nil {
-			sw.err = rterr
-		}
-	}()
-
-	if err := sw.initOffset(); err != nil {
-		return err
 	}
 
 	for _, oh := range sw.index {
@@ -123,10 +93,6 @@ func (sw *Writer) Write(p []byte) (n int, err error) {
 }
 
 func (sw *Writer) writeIndex() error {
-	if err := sw.initOffset(); err != nil {
-		return err
-	}
-
 	jsbs, err := json.Marshal(sw.index)
 	if err != nil {
 		return err
@@ -136,12 +102,8 @@ func (sw *Writer) writeIndex() error {
 		return err
 	}
 
-	if _, err := sw.w.Seek(0, io.SeekStart); err != nil {
-		return err
-	}
-
 	tmp := make([]byte, 4)
-	binary.LittleEndian.PutUint32(tmp, uint32(sw.offset))
+	binary.LittleEndian.PutUint32(tmp, uint32(len(jsbs)))
 
 	if _, err := sw.w.Write(tmp); err != nil {
 		return err
